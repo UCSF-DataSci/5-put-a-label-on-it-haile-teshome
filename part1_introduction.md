@@ -1,5 +1,3 @@
-# Install necessary packages
-
 ```python
 %pip install -r requirements.txt
 ```
@@ -36,10 +34,8 @@ def load_data(file_path):
     Returns:
         DataFrame containing the data
     """
-    # YOUR CODE HERE
-    # Load the CSV file using pandas
     
-    return pd.DataFrame()  # Replace with actual implementation
+    return pd.read_csv(file_path)
 ```
 
 ## 3. Data Preparation
@@ -59,14 +55,16 @@ def prepare_data_part1(df, test_size=0.2, random_state=42):
     Returns:
         X_train, X_test, y_train, y_test
     """
-    # YOUR CODE HERE
-    # 1. Select relevant features (age, systolic_bp, diastolic_bp, glucose_level, bmi)
-    # 2. Select target variable (disease_outcome)
-    # 3. Split data into training and testing sets
-    # 4. Handle missing values using SimpleImputer
+    features = ['age', 'systolic_bp', 'diastolic_bp', 'glucose_level', 'bmi']
+    target = 'disease_outcome'
     
-    # Placeholder return - replace with your implementation
-    return None, None, None, None
+    X = df[features]
+    y = df[target]
+    
+    imputer = SimpleImputer(strategy='mean')
+    X_imputed = imputer.fit_transform(X)
+    
+    return train_test_split(X_imputed, y, test_size=test_size, random_state=random_state)
 ```
 
 ## 4. Model Training
@@ -85,10 +83,9 @@ def train_logistic_regression(X_train, y_train):
     Returns:
         Trained logistic regression model
     """
-    # YOUR CODE HERE
-    # Initialize and train a LogisticRegression model
-    
-    return None  # Replace with actual implementation
+    model = LogisticRegression(max_iter=1000)
+    model.fit(X_train, y_train)
+    return model
 ```
 
 ## 5. Model Evaluation
@@ -108,14 +105,17 @@ def calculate_evaluation_metrics(model, X_test, y_test):
     Returns:
         Dictionary containing accuracy, precision, recall, f1, auc, and confusion_matrix
     """
-    # YOUR CODE HERE
-    # 1. Generate predictions
-    # 2. Calculate metrics: accuracy, precision, recall, f1, auc
-    # 3. Create confusion matrix
-    # 4. Return metrics in a dictionary
+    y_pred = model.predict(X_test)
+    y_prob = model.predict_proba(X_test)[:, 1]
     
-    # Placeholder return - replace with your implementation
-    return {}
+    return {
+        'accuracy': accuracy_score(y_test, y_pred),
+        'precision': precision_score(y_test, y_pred),
+        'recall': recall_score(y_test, y_pred),
+        'f1': f1_score(y_test, y_pred),
+        'auc': roc_auc_score(y_test, y_prob),
+        'confusion_matrix': confusion_matrix(y_test, y_pred).tolist()
+    }
 ```
 
 ## 6. Save Results
@@ -123,11 +123,13 @@ def calculate_evaluation_metrics(model, X_test, y_test):
 Save the calculated metrics to a text file.
 
 ```python
-# Create results directory and save metrics
-# YOUR CODE HERE
-# 1. Create 'results' directory if it doesn't exist
-# 2. Format metrics as strings
-# 3. Write metrics to 'results/results_part1.txt'
+def save_results(metrics, filename='results/results_part1.txt'):
+    """
+    Save metrics dictionary to a text file in JSON format.
+    """
+    os.makedirs('results', exist_ok=True)
+    with open(filename, 'w') as f:
+        json.dump(metrics, f, indent=4)
 ```
 
 ## 7. Main Execution
@@ -156,7 +158,7 @@ if __name__ == "__main__":
             print(f"{metric}: {value:.4f}")
     
     # 6. Save results
-    # (Your code for saving results)
+    save_results(metrics)
     
     # 7. Interpret results
     interpretation = interpret_results(metrics)
@@ -184,15 +186,18 @@ def interpret_results(metrics):
         - 'imbalance_impact_score': A score from 0-1 indicating how much
           the class imbalance affected results (0=no impact, 1=severe impact)
     """
-    # YOUR CODE HERE
-    # 1. Determine which metric performed best and worst
-    # 2. Calculate an imbalance impact score based on the difference
-    #    between accuracy and more imbalance-sensitive metrics like F1 or recall
-    # 3. Return the results as a dictionary
+    metric_values = {k: v for k, v in metrics.items() if k != 'confusion_matrix'}
+    best_metric = max(metric_values, key=metric_values.get)
+    worst_metric = min(metric_values, key=metric_values.get)
     
-    # Placeholder return - replace with your implementation
+    imbalance_impact_score = float(
+        abs(metrics['accuracy'] - metrics['recall'] + metrics['accuracy'] - metrics['f1']) / 2
+    )
+    
+    imbalance_impact_score = min(1.0, round(imbalance_impact_score, 3))  
+
     return {
-        'best_metric': 'unknown',
-        'worst_metric': 'unknown',
-        'imbalance_impact_score': 0.0
+        'best_metric': best_metric,
+        'worst_metric': worst_metric,
+        'imbalance_impact_score': imbalance_impact_score
     }
