@@ -37,11 +37,8 @@ def load_data(file_path):
     Returns:
         DataFrame containing the data with timestamp parsed as datetime
     """
-    # YOUR CODE HERE
-    # Load the CSV file using pandas
-    # Make sure to parse the timestamp column as datetime
     
-    return pd.DataFrame()  # Replace with actual implementation
+    return pd.read_csv(file_path, parse_dates=['timestamp'])
 ```
 
 ## 3. Feature Engineering
@@ -60,33 +57,17 @@ def extract_rolling_features(df, window_size_seconds):
     Returns:
         DataFrame with added hr_rolling_mean and hr_rolling_std columns
     """
-    # YOUR CODE HERE
-    # 1. Sort data by timestamp
-    #    df_sorted = df.sort_values('timestamp')
-    
-    # 2. Set timestamp as index (this allows time-based operations)
-    #    df_indexed = df_sorted.set_index('timestamp')
-    
-    # 3. Calculate rolling mean and standard deviation
-    #    - First, create a rolling window object based on time:
-    #      rolling_window = df_indexed['heart_rate'].rolling(window=f'{window_size_seconds}s')
-    #    - Then calculate statistics on this window:
-    #      hr_mean = rolling_window.mean()
-    #      hr_std = rolling_window.std()
-    
-    # 4. Add the new columns back to the dataframe
-    #    df_indexed['hr_rolling_mean'] = hr_mean
-    #    df_indexed['hr_rolling_std'] = hr_std
-    
-    # 5. Reset index to bring timestamp back as a column
-    #    df_result = df_indexed.reset_index()
-    
-    # 6. Handle any NaN values (rolling calculations create NaNs at the beginning)
-    #    - You can use fillna, dropna, or other methods depending on your strategy
-    #    df_result = df_result.fillna(method='bfill')  # Example: backward fill
-    
-    # Placeholder return - replace with your implementation
-    return df.copy()
+    df = df.sort_values('timestamp')
+    df = df.set_index('timestamp')
+
+    rolling = df['heart_rate'].rolling(f'{window_size_seconds}s')
+    df['hr_rolling_mean'] = rolling.mean()
+    df['hr_rolling_std'] = rolling.std()
+
+    df = df.reset_index()
+    df = df.fillna(method='bfill')  
+
+    return df
 ```
 
 ## 4. Data Preparation
@@ -106,14 +87,17 @@ def prepare_data_part2(df_with_features, test_size=0.2, random_state=42):
     Returns:
         X_train, X_test, y_train, y_test
     """
-    # YOUR CODE HERE
-    # 1. Select relevant features including the rolling features
-    # 2. Select target variable (disease_outcome)
-    # 3. Split data into training and testing sets
-    # 4. Handle missing values
+    features = ['age', 'systolic_bp', 'diastolic_bp', 'glucose_level', 'bmi',
+                'hr_rolling_mean', 'hr_rolling_std']
+    target = 'disease_outcome'
     
-    # Placeholder return - replace with your implementation
-    return None, None, None, None
+    X = df_with_features[features]
+    y = df_with_features[target]
+    
+    imputer = SimpleImputer(strategy='mean')
+    X_imputed = imputer.fit_transform(X)
+    
+    return train_test_split(X_imputed, y, test_size=test_size, random_state=random_state)
 ```
 
 ## 5. Random Forest Model
@@ -135,10 +119,9 @@ def train_random_forest(X_train, y_train, n_estimators=100, max_depth=10, random
     Returns:
         Trained Random Forest model
     """
-    # YOUR CODE HERE
-    # Initialize and train a RandomForestClassifier
-    
-    return None  # Replace with actual implementation
+    model = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=random_state)
+    model.fit(X_train, y_train)
+    return model
 ```
 
 ## 6. XGBoost Model
@@ -161,10 +144,14 @@ def train_xgboost(X_train, y_train, n_estimators=100, learning_rate=0.1, max_dep
     Returns:
         Trained XGBoost model
     """
-    # YOUR CODE HERE
-    # Initialize and train an XGBClassifier
-    
-    return None  # Replace with actual implementation
+    model = xgb.XGBClassifier(n_estimators=n_estimators,
+                              learning_rate=learning_rate,
+                              max_depth=max_depth,
+                              use_label_encoder=False,
+                              eval_metric='logloss',
+                              random_state=random_state)
+    model.fit(X_train, y_train)
+    return model
 ```
 
 ## 7. Model Comparison
@@ -172,10 +159,16 @@ def train_xgboost(X_train, y_train, n_estimators=100, learning_rate=0.1, max_dep
 Calculate and compare AUC scores for both models.
 
 ```python
-# YOUR CODE HERE
-# 1. Generate probability predictions for both models
-# 2. Calculate AUC scores
-# 3. Compare the performance
+
+rf_probs = rf_model.predict_proba(X_test)[:, 1]
+xgb_probs = xgb_model.predict_proba(X_test)[:, 1]
+
+rf_auc = roc_auc_score(y_test, rf_probs)
+xgb_auc = roc_auc_score(y_test, xgb_probs)
+
+print(f"Random Forest AUC: {rf_auc:.4f}")
+print(f"XGBoost AUC: {xgb_auc:.4f}")
+
 ```
 
 ## 8. Save Results
@@ -183,10 +176,15 @@ Calculate and compare AUC scores for both models.
 Save the AUC scores to a text file.
 
 ```python
-# YOUR CODE HERE
-# 1. Create 'results' directory if it doesn't exist
-# 2. Format AUC scores as strings
-# 3. Write scores to 'results/results_part2.txt'
+def save_auc_results(rf_auc, xgb_auc, filename='results/results_part2.txt'):
+    """
+    Save the AUC scores to a results text file.
+    """
+    os.makedirs('results', exist_ok=True)
+    with open(filename, 'w') as f:
+        f.write(f"Random Forest AUC: {rf_auc:.4f}\n")
+        f.write(f"XGBoost AUC: {xgb_auc:.4f}\n")
+
 ```
 
 ## 9. Main Execution
@@ -222,4 +220,4 @@ if __name__ == "__main__":
     print(f"XGBoost AUC: {xgb_auc:.4f}")
     
     # 6. Save results
-    # (Your code for saving results)
+    save_auc_results(rf_auc, xgb_auc)
