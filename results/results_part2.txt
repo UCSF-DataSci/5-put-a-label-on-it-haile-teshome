@@ -1,0 +1,2 @@
+Random Forest AUC: 0.9735
+XGBoost AUC: 0.9953
